@@ -6,36 +6,38 @@ use \Mockery as m,
 
 class TimedCacheTest extends \PHPUnit_Framework_TestCase
 {
+    function setUp() {
+        $this->mockClock = m::mock('mrno\\Clock');
+        $this->mockLoader = m::mock('mrno\\ObjectLoader');
+        $this->mockReloadPolicy = m::mock('mrno\\ReloadPolicy');
+        $this->cache = new TimedCache($this->mockLoader, $this->mockClock, $this->mockReloadPolicy);
+    }
+
     function tearDown() {
         m::close();
     }
 
     /** @test */
     function キャッシュされていないオブジェクトのロード() {
-        $mockClock = m::mock('mrno\\Clock');
-        $mockLoader = m::mock('mrno\\ObjectLoader');
-        $mockReloadPolicy = m::mock('mrno\\ReloadPolicy');
-
-        $mockClock->shouldReceive('getCurrentTime')
+        $this->mockClock->shouldReceive('getCurrentTime')
             ->withNoArgs()
-            ->andReturn(strtotime('2012-01-01 00:00:00'));
+            ->andReturn("nonsense");
 
-        $mockLoader->shouldReceive('load')
+        $this->mockLoader->shouldReceive('load')
             ->with('KEY')
             ->once()
             ->andReturn('VALUE');
 
-        $mockLoader->shouldReceive('load')
+        $this->mockLoader->shouldReceive('load')
             ->with('KEY2')
             ->once()
             ->andReturn('VALUE2');
 
-        $mockReloadPolicy->shouldReceive('shouldReload')
+        $this->mockReloadPolicy->shouldReceive('shouldReload')
             ->never();
 
-        $cache = new TimedCache($mockLoader, $mockClock, $mockReloadPolicy);
-        $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
-        $this->assertThat($cache->lookup("KEY2"), $this->equalTo("VALUE2"));
+        $this->assertThat($this->cache->lookup("KEY"), $this->equalTo("VALUE"));
+        $this->assertThat($this->cache->lookup("KEY2"), $this->equalTo("VALUE2"));
     }
 
 
@@ -44,30 +46,25 @@ class TimedCacheTest extends \PHPUnit_Framework_TestCase
         $loadTime = strtotime('2012-01-01 00:00:00');
         $fetchTime = strtotime('2012-01-01 01:00:00');
 
-        $mockClock = m::mock('mrno\\Clock');
-        $mockLoader = m::mock('mrno\\ObjectLoader');
-        $mockReloadPolicy = m::mock('mrno\\ReloadPolicy');
-
-        $mockLoader->shouldReceive('load')
+        $this->mockLoader->shouldReceive('load')
             ->with('KEY')
             ->once()
             ->globally()->ordered()
             ->andReturn('VALUE');
 
-        $mockClock->shouldReceive('getCurrentTime')
+        $this->mockClock->shouldReceive('getCurrentTime')
             ->withNoArgs()
             ->atLeast()->once()
             ->globally()->ordered()
             ->andReturn($loadTime, $fetchTime);
 
-        $mockReloadPolicy->shouldReceive('shouldReload')
+        $this->mockReloadPolicy->shouldReceive('shouldReload')
             ->with($loadTime, $fetchTime)
             ->atLeast()->once()
             ->andReturn(false);
 
-        $cache = new TimedCache($mockLoader, $mockClock, $mockReloadPolicy);
-        $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
-        $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
+        $this->assertThat($this->cache->lookup("KEY"), $this->equalTo("VALUE"));
+        $this->assertThat($this->cache->lookup("KEY"), $this->equalTo("VALUE"));
     }
 
 
@@ -81,27 +78,22 @@ class TimedCacheTest extends \PHPUnit_Framework_TestCase
         $fetchTime  = strtotime('2012-01-01 01:00:00');
         $reloadTime = strtotime('2012-01-01 02:00:00');
 
-        $mockClock = m::mock('mrno\\Clock');
-        $mockLoader = m::mock('mrno\\ObjectLoader');
-        $mockReloadPolicy = m::mock('mrno\\ReloadPolicy');
-
-        $mockClock->shouldReceive('getCurrentTime')
+        $this->mockClock->shouldReceive('getCurrentTime')
             ->withNoArgs()
             ->times(3)
             ->andReturn($loadTime, $fetchTime, $reloadTime);
 
-        $mockLoader->shouldReceive('load')
+        $this->mockLoader->shouldReceive('load')
             ->with('KEY')
             ->times(2)
             ->andReturn('VALUE', 'NEW_VALUE');
 
-        $mockReloadPolicy->shouldReceive('shouldReload')
+        $this->mockReloadPolicy->shouldReceive('shouldReload')
             ->with($loadTime, $fetchTime)
             ->atLeast()->once()
             ->andReturn(true);
 
-        $cache = new TimedCache($mockLoader, $mockClock, $mockReloadPolicy);
-        $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
-        $this->assertThat($cache->lookup("KEY"), $this->equalTo("NEW_VALUE"));
+        $this->assertThat($this->cache->lookup("KEY"), $this->equalTo("VALUE"));
+        $this->assertThat($this->cache->lookup("KEY"), $this->equalTo("NEW_VALUE"));
     }
 }
