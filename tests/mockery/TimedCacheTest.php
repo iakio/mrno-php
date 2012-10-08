@@ -49,15 +49,17 @@ class TimedCacheTest extends \PHPUnit_Framework_TestCase
         $mockLoader = m::mock('mrno\\ObjectLoader');
         $mockReloadPolicy = m::mock('mrno\\ReloadPolicy');
 
-        $mockClock->shouldReceive('getCurrentTime')
-            ->withNoArgs()
-            ->times(2)
-            ->andReturn($loadTime, $fetchTime);
-
         $mockLoader->shouldReceive('load')
             ->with('KEY')
             ->once()
+            ->globally()->ordered()
             ->andReturn('VALUE');
+
+        $mockClock->shouldReceive('getCurrentTime')
+            ->withNoArgs()
+            ->atLeast()->once()
+            ->globally()->ordered()
+            ->andReturn($loadTime, $fetchTime);
 
         $mockReloadPolicy->shouldReceive('shouldReload')
             ->with($loadTime, $fetchTime)
@@ -67,6 +69,5 @@ class TimedCacheTest extends \PHPUnit_Framework_TestCase
         $cache = new TimedCache($mockLoader, $mockClock, $mockReloadPolicy);
         $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
         $this->assertThat($cache->lookup("KEY"), $this->equalTo("VALUE"));
-
     }
 }
